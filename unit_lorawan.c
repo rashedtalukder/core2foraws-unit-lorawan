@@ -25,7 +25,7 @@
  */
 
 #include "core2foraws.h"
-#include "unit_"
+#include "unit_lorawan.h"
 
 #define UNIT_LORAWAN_DATA_RATE    115200
 
