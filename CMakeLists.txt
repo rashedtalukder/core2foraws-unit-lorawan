@@ -1,0 +1,4 @@
+cmake_minimum_required( VERSION 3.16.0 )
+set( COMPONENT_REQUIRES "Core2-for-AWS-IoT-Kit")
+
+register_component()

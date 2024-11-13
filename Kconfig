@@ -1,0 +1,17 @@
+menu "Unit-LoRaWAN"
+    config LORAWAN_DEVICE_EUI
+        hex
+        prompt "Device's Unique EUI"
+        default 0x00
+        range 0x00 0xffffffffffffffff
+    config LORAWAN_APP_EUI
+        hex
+        prompt "Application's Unique EUI"
+        default 0x00
+        range 0x00 0xffffffffffffffff
+    config LORAWAN_APP_KEY
+        hex
+        prompt "Application's Secret Key"
+        default 0x00
+        range 0x00 0xffffffffffffffff
+endmenu

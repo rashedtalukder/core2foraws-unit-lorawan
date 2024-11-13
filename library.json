@@ -1,0 +1,21 @@
+{
+    "name": "core2foraws-unit-lorawan",
+    "version": "1.0.0",
+    "description": "Peripheral driver for the M5Stack LoRaWAN unit on the Core2 for AWS IoT Kit",
+    "keywords": "lorawan, m5stack, aws, core2, edukit",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/rashedtalukder/core2foraws-unit-lorawan.git"
+    },
+    "authors":
+    [
+      {
+        "name": "Rashed Talukder",
+        "maintainer": true
+      }
+    ],
+    "license": "Apache 2.0",
+    "frameworks": ["espidf", "freertos"],
+    "platforms": ["espressif32"]
+  }
