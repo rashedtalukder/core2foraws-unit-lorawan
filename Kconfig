@@ -6,12 +6,26 @@ menu "Unit-LoRaWAN"
         range 0x00 0xffffffffffffffff
     config LORAWAN_APP_EUI
         hex
-        prompt "Application's Unique EUI"
+        prompt "Application's Unique EUI (for OTAA)"
         default 0x00
         range 0x00 0xffffffffffffffff
     config LORAWAN_APP_KEY
         hex
-        prompt "Application's Secret Key"
+        prompt "Application's Secret Key (for OTAA)"
+        default 0x00
+        range 0x00 0xffffffffffffffff
+    config LORAWAN_ULDL_MODE
+        bool
+        prompt "Sync Uplink/Downlink Mode"
+        default n
+    config LORAWAN_APP_SKEY
+        hex
+        prompt "Application Session Key (for ABP)"
+        default 0x00
+        range 0x00 0xffffffffffffffff
+    config LORAWAN_NWK_SKEY
+        hex
+        prompt "Network Session Key (for ABP)"
         default 0x00
         range 0x00 0xffffffffffffffff
 endmenu
