@@ -1,31 +1,139 @@
-menu "Unit-LoRaWAN"
-    config LORAWAN_DEVICE_EUI
-        hex
-        prompt "Device's Unique EUI"
-        default 0x00
-        range 0x00 0xffffffffffffffff
-    config LORAWAN_APP_EUI
-        hex
-        prompt "Application's Unique EUI (for OTAA)"
-        default 0x00
-        range 0x00 0xffffffffffffffff
-    config LORAWAN_APP_KEY
-        hex
-        prompt "Application's Secret Key (for OTAA)"
-        default 0x00
-        range 0x00 0xffffffffffffffff
+menu "Unit-LoRaWAN Configuration"
+    
+    choice LORAWAN_ACTIVATION_MODE
+        prompt "LoRaWAN Activation Mode"
+        default LORAWAN_OTAA
+        help
+            Select the activation mode for LoRaWAN communication.
+            
+        config LORAWAN_OTAA
+            bool "OTAA (Over-The-Air Activation)"
+            help
+                Use OTAA for dynamic key exchange. Recommended for most applications.
+                
+        config LORAWAN_ABP
+            bool "ABP (Activation By Personalization)"
+            help
+                Use ABP with pre-shared keys. Not recommended for production.
+    endchoice
+    
+    if LORAWAN_OTAA
+        config LORAWAN_DEVICE_EUI
+            string "Device EUI (16 hex characters)"
+            default "0000000000000000"
+            help
+                Device EUI as 16 hexadecimal characters (without spaces or delimiters).
+                Example: 70B3D57ED006BED3
+                
+        config LORAWAN_APP_EUI
+            string "Application EUI (16 hex characters)"
+            default "0000000000000000"
+            help
+                Application EUI as 16 hexadecimal characters.
+                For TTN v3, use all zeros: 0000000000000000
+                
+        config LORAWAN_APP_KEY
+            string "Application Key (32 hex characters)"
+            default "00000000000000000000000000000000"
+            help
+                Application Key as 32 hexadecimal characters (without spaces or delimiters).
+                Example: 6D23016D08DBC02237CDC1A19957E974
+    endif
+    
+    if LORAWAN_ABP
+        config LORAWAN_APP_SKEY
+            string "Application Session Key (32 hex characters)"
+            default "00000000000000000000000000000000"
+            help
+                Application Session Key as 32 hexadecimal characters for ABP mode.
+                
+        config LORAWAN_NWK_SKEY
+            string "Network Session Key (32 hex characters)"
+            default "00000000000000000000000000000000"
+            help
+                Network Session Key as 32 hexadecimal characters for ABP mode.
+                
+        config LORAWAN_DEV_ADDR
+            hex "Device Address"
+            default 0x00000000
+            range 0x00000000 0xffffffff
+            help
+                Device Address for ABP mode (32-bit value).
+    endif
+    
     config LORAWAN_ULDL_MODE
-        bool
-        prompt "Sync Uplink/Downlink Mode"
+        bool "Use same frequency for uplink/downlink"
         default n
-    config LORAWAN_APP_SKEY
-        hex
-        prompt "Application Session Key (for ABP)"
-        default 0x00
-        range 0x00 0xffffffffffffffff
-    config LORAWAN_NWK_SKEY
-        hex
-        prompt "Network Session Key (for ABP)"
-        default 0x00
-        range 0x00 0xffffffffffffffff
+        help
+            Enable to use the same frequency for uplink and downlink.
+            Disable for different frequencies (recommended for TTN).
+            
+    choice LORAWAN_REGION
+        prompt "LoRaWAN Region"
+        default LORAWAN_REGION_US915
+        help
+            Select the LoRaWAN regional parameters.
+            
+        config LORAWAN_REGION_US915
+            bool "US915 (902-928 MHz)"
+            help
+                United States ISM band (902-928 MHz).
+                
+        config LORAWAN_REGION_EU868
+            bool "EU868 (863-870 MHz)"
+            help
+                European ISM band (863-870 MHz). Not fully supported yet.
+    endchoice
+    
+    if LORAWAN_REGION_US915
+        config LORAWAN_US915_SUB_BAND
+            int "US915 Sub-band (1-8)"
+            default 2
+            range 1 8
+            help
+                US915 sub-band to use. TTN typically uses sub-band 2 (channels 8-15).
+                Each sub-band contains 8 uplink channels.
+                
+        config LORAWAN_US915_DATA_RATE
+            int "Initial Data Rate (0-4)"
+            default 2
+            range 0 4
+            help
+                Initial data rate for US915:
+                DR0: SF10 (11 bytes max, longest range)
+                DR1: SF9 (53 bytes max)
+                DR2: SF8 (125 bytes max, recommended)
+                DR3: SF7 (242 bytes max)
+                DR4: SF8 500kHz (242 bytes max, shortest range)
+    endif
+    
+    config LORAWAN_ADR_ENABLED
+        bool "Enable Adaptive Data Rate (ADR)"
+        default y
+        help
+            Enable ADR for automatic data rate optimization by the network.
+            Recommended for most applications.
+            
+    config LORAWAN_JOIN_TIMEOUT_SEC
+        int "Join timeout (seconds)"
+        default 60
+        range 30 300
+        help
+            Maximum time to wait for network join in seconds.
+            
+    config LORAWAN_TX_POWER_INDEX
+        int "TX Power Index (0-7)"
+        default 2
+        range 0 7
+        help
+            Transmission power index. Lower values = higher power.
+            US915: 0=30dBm, 1=28dBm, 2=26dBm, ..., 7=16dBm
+            
+    config LORAWAN_CONFIRMED_RETRIES
+        int "Confirmed message retries"
+        default 3
+        range 1 15
+        help
+            Number of retransmission attempts for confirmed messages.
+
 endmenu
