@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2024-2026 Rashed Talukder
+# SPDX-License-Identifier: Apache-2.0
+
+version: "1.0.0"
+description: "Driver for the M5Stack Unit LoRaWAN915 (U115, ASR6501, US915) on the Core2 for AWS IoT Kit"
+url: "https://github.com/rashedtalukder/core2foraws-unit-lorawan"
+license: "Apache-2.0"
+dependencies:
+  idf:
+    version: ">=5.2"

@@ -1,0 +1,129 @@
+# SPDX-FileCopyrightText: 2024-2026 Rashed Talukder
+# SPDX-License-Identifier: Apache-2.0
+
+menu "Unit LoRaWAN (US915)"
+
+    choice LORAWAN_ACTIVATION_MODE
+        prompt "Activation"
+        default LORAWAN_OTAA
+
+        config LORAWAN_OTAA
+            bool "OTAA (Over-The-Air Activation)"
+            help
+                Session keys are negotiated at join. Recommended.
+
+        config LORAWAN_ABP
+            bool "ABP (Activation By Personalization)"
+            help
+                Fixed session keys. The network must tolerate frame-counter
+                resets unless the modem retains counters across power loss.
+    endchoice
+
+    if LORAWAN_OTAA
+        config LORAWAN_DEVICE_EUI
+            string "DevEUI (16 hex characters)"
+            default ""
+            help
+                Leave empty until provisioned. Keep credentials in the local,
+                untracked sdkconfig.
+
+        config LORAWAN_APP_EUI
+            string "AppEUI / JoinEUI (16 hex characters)"
+            default "0000000000000000"
+            help
+                TTN v3 accepts all zeros.
+
+        config LORAWAN_APP_KEY
+            string "AppKey (32 hex characters)"
+            default ""
+    endif
+
+    if LORAWAN_ABP
+        config LORAWAN_DEV_ADDR
+            string "DevAddr (8 hex characters)"
+            default ""
+
+        config LORAWAN_APP_SKEY
+            string "AppSKey (32 hex characters)"
+            default ""
+
+        config LORAWAN_NWK_SKEY
+            string "NwkSKey (32 hex characters)"
+            default ""
+    endif
+
+    config LORAWAN_US915_SUB_BAND
+        int "US915 sub-band (1-8)"
+        default 2
+        range 1 8
+        help
+            Enables the eight 125 kHz uplink channels of one sub-band. TTN,
+            Helium, and most North American gateways use sub-band 2
+            (903.9-905.3 MHz).
+
+    config LORAWAN_US915_DATA_RATE
+        int "Initial data rate (0-4)"
+        default 3
+        range 0 4
+        help
+            DR0 SF10 (11 B), DR1 SF9 (53 B), DR2 SF8 (125 B), DR3 SF7 (242 B),
+            DR4 SF8/500 kHz (242 B). DR0 meets the FCC 400 ms dwell limit only
+            with 11-byte payloads.
+
+    config LORAWAN_ADR_ENABLED
+        bool "Adaptive data rate"
+        default y
+
+    config LORAWAN_TX_POWER_INDEX
+        int "TX power index (0 = highest)"
+        default 0
+        range 0 14
+        help
+            Modem power index. The module's conducted maximum is +21 dBm.
+
+    config LORAWAN_CONFIRMED_UPLINKS
+        bool "Confirmed uplinks by default"
+        default n
+        help
+            Each confirmed uplink costs a downlink ACK. TTN's fair-use policy
+            allows about 10 downlinks per device per day, so leave this off
+            for periodic telemetry and use link checks to detect coverage loss.
+
+    config LORAWAN_CONFIRMED_RETRIES
+        int "Transmissions per confirmed uplink"
+        default 3
+        range 1 15
+
+    config LORAWAN_APP_PORT
+        int "Uplink FPort"
+        default 10
+        range 1 223
+        help
+            The modem's factory port is 10.
+
+    config LORAWAN_JOIN_PERIOD_SEC
+        int "Seconds between join attempts"
+        default 10
+        range 7 255
+
+    config LORAWAN_JOIN_ATTEMPTS
+        int "Join attempts per join request"
+        default 8
+        range 1 256
+
+    config LORAWAN_JOIN_TIMEOUT_SEC
+        int "Join timeout (seconds)"
+        default 120
+        range 30 3600
+        help
+            How long the application waits for a join result.
+
+    config LORAWAN_SAVE_CONFIG
+        bool "Persist configuration in modem flash"
+        default n
+        help
+            The driver writes the full configuration at every start, so
+            saving is only needed for tools that talk to the modem directly.
+            Each save wears modem flash.
+
+endmenu

@@ -1,0 +1,238 @@
+schema_version: "1.0"
+device:
+  name: "M5Stack Unit LoRaWAN915"
+  sku: "U115"
+  scope: "US915 ASR6501 UART AT-command modem"
+
+source_evidence:
+  verified_on: "2026-08-01"
+  official_product_page: "https://docs.m5stack.com/en/unit/lorawan915"
+  local_at_reference:
+    file: "ASR650XATCommandIntroduction-20190605_1695629825.pdf"
+    revision: "ASR650X AT Command Introduction v4.0"
+    verified_on: "2026-09-26"
+    pages: 35
+    sha256: "29d0d3d6f6325108eecd2a2f3273dbfcac9e4134960115b30ed1fa52230cd905"
+  current_at_reference:
+    revision: "ASR6501/ASR6502 AT Command Introduction v4.3"
+    official_url: "https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/docs/datasheet/module/COM.LoRaWAN.Ra-07.asr6501-asr6502-at-commands-introduction-v4.3.pdf"
+    sha256_reviewed_copy: "5af461ba120041e04776b183878a7280873a07c51c43da0d880ab1ab345e61e9"
+    checked_in: false
+  precedence:
+    - "Use the M5Stack product page for the fitted module, US915 scope, connector, and antenna."
+    - "Use v4.3 for current AT framing; retain v4.0 to document the checked-in source revision."
+    - "Validate regional payload and channel behavior against the LoRaWAN Regional Parameters for the deployed network."
+
+interface:
+  type: "UART"
+  baud: 115200
+  framing: "8N1"
+  command_terminator: "CR"
+  downlink_indication: "OK+RECV:TYPE,PORT,LEN,DATA"
+  request_format: "AT+<CMD>[OP][para-1,...,para-n]\r"
+  operators: { "=": "set", "?": "inquire", "": "execute", "=?": "test" }
+  reply_format: "\r\n[+CMD:][para-1,...,para-n]\r\n and/or \r\n<STATUS>\r\n"
+  status_lines: ["OK", "ERROR", "+CME ERROR:<err>"]
+  cme_error_codes: "Not enumerated; the PDF defers to 3GPP 'AT command set for User Equipment (UE)'."
+  echo: true
+  backspace: false
+  history_keys: false
+  reply_separator: "Format rows show '+CMD:<v>'; CGMI/CGMM/CGMR/CGSN/CDEVEUI/CBL/CSTATUS examples show '+CMD=<v>'. Accept both."
+
+# Command facts from the checked-in v4.0 PDF (sections 5.1-5.2).
+# forms: "=?" test, "?" inquire, "=" set/execute with params, "" bare execute.
+# before: "join" or "send" is the ordering stated in the command's Notice row.
+at_commands:
+  general: # Table 4
+    option: optional
+    CGMI: { forms: ["?"], reply: "+CGMI=<manufacturer>", example: "ASR" }
+    CGMM: { forms: ["?"], reply: "+CGMM=<model>", example: "6501" }
+    CGMR: { forms: ["?"], reply: "+CGMR=<revision>", example: "v4.0" }
+    CGSN: { forms: ["?"], reply: "+CGSN=<sn>", example: "0539349E00032523" }
+    CGBR: { forms: ["?", "="], params: [baud], example: "AT+CGBR=9600" }
+
+  network: # Table 5
+    option: mandatory
+    CJOINMODE: { forms: ["=?", "?", "="], values: { 0: "OTAA", 1: "ABP" }, default: 0, notes: "Select ABP before sending any data." }
+    CDEVEUI: { forms: ["=?", "?", "="], hex_chars: 16, bytes: 8, join_mode: "OTAA" }
+    CAPPEUI: { forms: ["=?", "?", "="], hex_chars: 16, bytes: 8, join_mode: "OTAA" }
+    CAPPKEY: { forms: ["=?", "?", "="], hex_chars: 32, bytes: 16, join_mode: "OTAA" }
+    CDEVADDR: { forms: ["=?", "?", "="], hex_chars: 8, bytes: 4, join_mode: "ABP" }
+    CAPPSKEY: { forms: ["=?", "?", "="], hex_chars: 32, bytes: 16, join_mode: "ABP" }
+    CNWKSKEY: { forms: ["=?", "?", "="], hex_chars: 32, bytes: 16, join_mode: "ABP" }
+    CFREQBANDMASK:
+      forms: ["=?", "?", "="]
+      format: "4 hex chars; 16 bits, one per 8-channel frequency group"
+      examples: { "0001": "channels 0-7", "0002": "channels 8-15" }
+      before: join
+    CULDLMODE: { forms: ["=?", "?", "="], values: { 1: "same frequency", 2: "different frequency" }, before: join }
+    CADDMUTICAST:
+      option: optional
+      forms: ["=?", "="]
+      params: ["DevAddr (8 hex)", "AppSKey (32 hex)", "NwkSKey (32 hex)", "[Periodicity]", "[Datarate]"]
+      before: join
+    CDELMUTICAST: { option: optional, forms: ["=?", "="], params: ["DevAddr (8 hex)"] }
+    CNUMMUTICAST: { option: optional, forms: ["=?", "?"], reply: "+CNUMMUTICAST:<number>" }
+
+  control: # Table 6
+    option: mandatory
+    CWORKMODE: { forms: ["=?", "?", "="], values: { 2: "normal" }, default: 2, before: join, notes: "Only normal mode is supported." }
+    CCLASS:
+      forms: ["=?", "?", "="]
+      format: "<class>[,branch][,para1][,para2][,para3][,para4]"
+      values: { 0: "A", 1: "B", 2: "C" }
+      default: 0
+      before: join
+      class_b_branch_0: { para1: "ping slot periodicity 0..7; period_s = 0.96 * 2^periodicity" }
+      class_b_branch_1: { para1: "beacon frequency Hz", para2: "beacon data rate", para3: "ping slot frequency Hz", para4: "ping slot data rate" }
+    CBL: { option: optional, forms: ["=?", "?"], reply: "+CBL:<value>", range: "per LoRaWAN protocol", example: 100 }
+    CSTATUS:
+      forms: ["=?", "?"]
+      reply: "+CSTATUS:<status> (two decimal digits)"
+      values:
+        0: "no data operation"
+        1: "data sending"
+        2: "data sent, failed"
+        3: "data sent, success"
+        4: "join success (first join only)"
+        5: "join fail (first join only)"
+        6: "network may be abnormal (from link check)"
+        7: "data sent, success, no downlink"
+        8: "data sent, success, with downlink"
+    CJOIN:
+      forms: ["=?", "?", "="]
+      format: "<p1>[,p2][,p3][,p4]"
+      params:
+        p1: { values: { 0: "stop join", 1: "start join (restarts; clears warm-boot join parameters)" } }
+        p2: { name: "auto_join", values: { 0: "disable", 1: "enable" }, default: 1 }
+        p3: { name: "period_s", range: [7, 255], default: 8 }
+        p4: { name: "max_retries", range: [1, 256] }
+      replies: ["OK or +CME ERROR:<err>", "then +CJOIN:OK or +CJOIN:FAIL"]
+      example: "AT+CJOIN=1,1,10,8"
+    CPINGSLOTINFOREQ: { option: optional, forms: ["=?", "?", "="], params: [periodicity], notes: "Class B only." }
+
+  data: # Table 7
+    option: mandatory
+    DTRX:
+      forms: ["=?", "="]
+      format: "[confirm],[nbtrials],<Length>,<Payload>"
+      params:
+        confirm: "optional per-send override of CCONFIRM"
+        nbtrials: "optional per-send override of CNBTRIALS"
+        length: "number of payload characters (2 per byte); 0 = empty packet; max per data rate"
+        payload: "hex string"
+      success_lines: ["OK+SEND:TX_LEN", "OK+SENT:TX_CNT", "OK+RECV:TYPE,PORT,LEN[,DATA]"]
+      failure_lines: ["ERR+SEND:ERR_NUM", "ERR+SENT:TX_CNT", "+CME ERROR:<err>"]
+      err_send: { 0: "not joined", 1: "communication path busy", 2: "length exceeds limit; only MAC command sent" }
+      err_sent: "send count exceeded maximum"
+      confirmed: "Network ACK yields OK+SEND, OK+SENT, OK+RECV; no ACK after max trials yields ERR+SENT."
+      unconfirmed: "OK+SEND, OK+SENT; OK+RECV only when a downlink arrives."
+      recv_type_bits:
+        0: "0 unconfirmed, 1 confirmed"
+        1: "0 no ACK, 1 ACK"
+        2: "carries LINK command ACK"
+        3: "carries TIME command ACK; 1 = time sync success"
+        "7:4": "reserved, 0"
+      recv_fields: { TYPE: "1 byte", PORT: "1 byte", LEN: "1 byte (downlink bytes)", DATA: "LEN bytes; absent when LEN = 0" }
+      example: { command: "AT+DTRX=1,2,10,0123456789", replies: ["OK+SEND:03", "OK+SENT:01", "OK+RECV:02,01,00"] }
+      before: "join complete"
+    DRX:
+      forms: ["=?", "?"]
+      reply: "+DRX:<Length>,<Payload>"
+      notes: "Reads then clears the RX buffer. The example with no data returns only OK."
+
+  mac: # Table 8
+    option: mandatory
+    CCONFIRM: { forms: ["=?", "?", "="], values: { 0: "unconfirmed", 1: "confirmed" }, before: send }
+    CAPPPORT: { forms: ["=?", "?", "="], range: [1, 223], default: 10, notes: "Decimal; port 0 is reserved for MAC commands.", before: send }
+    CDATARATE:
+      forms: ["=?", "?", "="]
+      values: { 0: "SF12 BW125", 1: "SF11 BW125", 2: "SF10 BW125", 3: "SF9 BW125", 4: "SF8 BW125", 5: "SF7 BW125" }
+      default: 3
+      before: send
+      notes: "Generic table, not the US915 DR table. Ignored while ADR is enabled."
+    CRSSI:
+      forms: ["=?", "<FREQBANDIDX>?"]
+      format: "AT+CRSSI <idx>? (space before index; index starts at 0)"
+      reply: "+CRSSI: then one '<ch>:<rssi>' line per channel (0..7), then OK"
+      example: { command: "AT+CRSSI 1?", line: "0:-157" }
+    CNBTRIALS: { forms: ["=?", "?", "="], format: "<MType>,<value>", mtype: { 0: "unconfirmed", 1: "confirmed" }, range: [1, 15], before: send }
+    CRM:
+      forms: ["=?", "?", "="]
+      format: "<reportMode>[,reportInterval]"
+      values: { 0: "non-periodic", 1: "periodic" }
+      notes: "Mainly for testing. reportInterval in seconds, periodic mode only."
+      min_interval_s: { DR0: [150, 300], DR1: [75, 150], DR2: [35, 70], DR3: [15, 30], DR4: [10, 20], DR5: [5, 10] } # [LV1, LV2]
+      before: send
+    CTXP:
+      forms: ["=?", "?", "="]
+      default: 0
+      cn470a_dbm: { 0: 17, 1: 15, 2: 13, 3: 11, 4: 9, 5: 7, 6: 5, 7: 3 }
+      notes: "Index table is product-specific; only CN470A is documented."
+      before: send
+    CLINKCHECK:
+      forms: ["=?", "="]
+      values: { 0: "disable", 1: "check once", 2: "check after every uplink" }
+      reply: "OK, later +CLINKCHECK:Y0,Y1,Y2,Y3,Y4"
+      fields: { Y0: "0 success, non-zero fail", Y1: "DemodMargin", Y2: "NbGateways", Y3: "downlink RSSI", Y4: "downlink SNR" }
+      example: "+CLINKCHECK: 0,0,1,-68,8"
+      before: send
+    CADR: { forms: ["=?", "?", "="], values: { 0: "disable", 1: "enable" }, default: 1, before: send }
+    CRXP: { forms: ["=?", "?", "="], format: "<RX1DRoffset>,<RX2DataRate>,<RX2Frequency Hz>", example: "AT+CRXP=1,1,471000000", before: send }
+    CFREQLIST:
+      option: unlisted # absent from the summary tables
+      forms: ["=?", "?", "="]
+      format: "<ULDL>,<method>,<number>,<freqlist>"
+      uldl: { 1: "uplink", 2: "downlink (different-frequency nodes only)" }
+      method: { 1: "start frequency + channel count", 2: "explicit per-channel frequencies" }
+      number_range: [1, 16]
+      supported: false
+      notes: "Not supported in v4.0; use CFREQBANDMASK."
+    CRX1DELAY: { forms: ["=?", "?", "="], unit: "s", notes: "Delay from TX done to RX1; protocol default if unset.", before: send }
+    CSAVE: { forms: ["=?", ""], notes: "Persists MAC configuration to EEPROM/FLASH; applied after reset.", before: send }
+    CRESTORE: { forms: ["=?", ""], notes: "Writes MAC defaults to EEPROM/FLASH." }
+
+  other: # Table 9
+    option: optional
+    IREBOOT:
+      forms: ["=?", "="]
+      values: { 0: "reboot now", 1: "reboot after current frame", 7: "reboot into bootloader" }
+      notes: "Replies OK, then accepts no commands until reboot completes."
+    ILOGLVL: { forms: ["=?", "?", "="], range: [0, 5], notes: "0 disables logs; higher is more verbose." }
+
+  private: # Table 10
+    option: optional
+    CLPM:
+      forms: ["=?", "="]
+      values: { 1: "enter low-power mode" }
+      notes: "Above 40 kbps the first UART byte may be corrupted, so AT+CLPM=0 can return +CME ERROR. Wake with hex 000000000D0A."
+    CKEYSPROTECT:
+      forms: ["=?", "?", "="]
+      params: ["key (32 hex)"]
+      reply: "+CKEYSPROTECT:<protected>"
+      irreversible: true
+      notes: "Encrypts the device triple-tuple in flash; readable only as ciphertext and no longer changeable."
+    CSLEEP: { forms: ["=?", "="], values: { 0: "deep sleep, timer wake after 10 s", 1: "deep sleep, wake on set_b high", 2: "deep sleep, wake on UART input" } }
+    CMCU: { forms: ["=?", "="], values: { 0: "power down SX1262 only", 1: "MCU, watchdog, timer keep running", 2: "as 1, then deep sleep with wake on set_b high", 3: "deep sleep every 15 s" } }
+    CSTDBY: { forms: ["=?", "="], values: { 0: "SX1262 STDBY_RC", 1: "SX1262 STDBY_XOSC" }, notes: "MCU deep sleeps; wakes on UART." }
+    CRX: { forms: ["=?", "="], format: "<freq>,<data_rate>", dead_loop: true }
+    CTX: { forms: ["=?", "="], format: "<freq>,<data_rate>,<pwr>", tx_interval_s: 1, dead_loop: true }
+    CTXCW:
+      forms: ["=?", "="]
+      format: "<freq>,<pwr>[,<opt>]"
+      pa_opt: { 0: "[0x04,0x07,0x00,0x01]", 1: "[0x03,0x05,0x00,0x01]", 2: "[0x02,0x03,0x00,0x01]", 3: "[0x02,0x02,0x00,0x01]" }
+      pa_opt_default: 0
+      dead_loop: true
+    radio_test_limits: { freq_hz: [150000000, 960000000], data_rate: "DR0..DR5 = SF12..SF7", sx1262_pwr_dbm: [0, 22] }
+
+# Inconsistencies inside the v4.0 PDF; do not treat either side as authoritative without the installed modem's reply.
+source_errata:
+  - "5.2.4 CGSN format row shows +CGMR=<sn>; the example shows +CGSN=."
+  - "5.2.27 CRM inquire/execute rows show +CTXP/AT+CTXP; the command is CRM (example AT+CRM=1,10)."
+  - "5.2.25 CRSSI format lists up to '15:<Channel 8 rssi>'; text and example return 8 channels (0..7)."
+  - "5.2.46 CSTDBY test reply shows +CRXC = <0, 1>."
+  - "5.2.34 CSAVE refers to AT+RESET, which is not documented; the reboot command is AT+IREBOOT."
+  - "5.2.29 CLINKCHECK example uses full-width commas (U+FF0C) and a space after the colon."
+  - "5.2.20 DTRX example sends 5 bytes but reports OK+SEND:03."
+  - "5.2.43 CLPM defines only mode 1 but its notice references AT+CLPM=0."
+  - "5.2.32 CFREQLIST is detailed but absent from the command summary tables."
